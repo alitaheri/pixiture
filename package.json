@@ -1,0 +1,26 @@
+{
+  "name": "pixiture",
+  "version": "1.0.0",
+  "description": "Signiture data gathering library",
+  "scripts": {
+    "prebuild": "node_modules/.bin/tsc",
+    "build": "node_modules/.bin/webpack --progress --colors src/app.js build/bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subjectix/pixiture.git"
+  },
+  "author": "Ali Taheri",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/subjectix/pixiture/issues"
+  },
+  "homepage": "https://github.com/subjectix/pixiture#readme",
+  "dependencies": {
+    "pixi.js": "^3.0.8"
+  },
+  "devDependencies": {
+    "typescript": "^1.7.5",
+    "webpack": "^1.12.9"
+  }
+}
