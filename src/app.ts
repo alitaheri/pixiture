@@ -30,23 +30,6 @@ function distance(Ax: number, Ay: number, Bx: number, By: number) {
     return Math.pow(dx * dx + dy * dy, 0.5);
 }
 
-function dotProduct(Ax: number, Ay: number, Bx: number, By: number) {
-    return Ax * Bx + Ay * By;
-}
-
-function calculateAngle(Ax: number, Ay: number, Bx: number, By: number, Cx: number, Cy: number) {
-
-    const abDistance = distance(Ax, Ay, Bx, By);
-    const bcDistance = distance(Bx, By, Cx, Cy);
-
-    const product = dotProduct(Bx - Ax, By - Ay, Cx - Bx, Cy - By);
-    const distanceProduct = abDistance * bcDistance;
-
-    if (distanceProduct === 0) return 0;
-
-    return Math.acos(product / distanceProduct);
-}
-
 function render() {
     graphic.clear();
 
@@ -67,18 +50,6 @@ function addPoint(data: Data, x: number, y: number) {
 
     const previousX = data.x[length - 1];
     const previousY = data.y[length - 1];
-
-    if (length > 1) {
-        const angle = calculateAngle(
-            data.x[length - 2],
-            data.y[length - 2],
-            data.x[length - 1],
-            data.y[length - 1],
-            x,
-            y
-        );
-        if (isNaN(angle) && angle < Math.PI / 180.0 * 45.0) return;
-    }
 
     if (distance(x, y, previousX, previousY) > 5) {
         data.x.push(x);
