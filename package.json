@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "Signiture data gathering library",
   "scripts": {
-    "prebuild": "node_modules/.bin/tsc",
-    "build": "node_modules/.bin/webpack --config webpack.config.js --progress --colors"
+    "ts-watch": "node_modules/.bin/tsc --watch",
   },
   "repository": {
     "type": "git",
@@ -20,8 +19,6 @@
     "pixi.js": "^3.0.8"
   },
   "devDependencies": {
-    "json-loader": "^0.5.4",
-    "typescript": "^1.7.5",
-    "webpack": "^1.12.9"
+    "typescript": "^1.7.5"
   }
 }
