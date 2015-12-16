@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Signiture data gathering library",
   "scripts": {
-    "ts-watch": "node_modules/.bin/tsc --watch",
+    "ts-watch": "node_modules/.bin/tsc --watch"
   },
   "repository": {
     "type": "git",

@@ -21,13 +21,10 @@ let mouse: { data?: Data } = {};
 
 const stage = new PIXI.Container();
 
-const cache = new PIXI.Container();
-stage.addChild(cache);
-
 const graphic = new PIXI.Graphics();
 stage.addChild(graphic);
 
-const LINE_WIDTH = 5;
+const LINE_WIDTH = 2;
 
 function distance(Ax: number, Ay: number, Bx: number, By: number) {
     const dx = Ax - Bx;
@@ -41,7 +38,7 @@ function clear() {
     for (let i = 0; i < datas.length; i++) {
         const data = datas[i];
         if (data.frozen && data.gr) {
-            cache.removeChild(data.gr);
+            stage.removeChild(data.gr);
             deleted.push(i);
             datas.splice(i, 1);
             render();
@@ -69,7 +66,7 @@ function render() {
         if (data.frozen) {
             if (!data.gr) {
                 const cahcedGraphics = new PIXI.Graphics();
-                cache.addChild(cahcedGraphics);
+                stage.addChild(cahcedGraphics);
                 renderStroke(cahcedGraphics, data);
                 data.gr = cahcedGraphics;
             }
@@ -77,6 +74,10 @@ function render() {
             renderStroke(graphic, data);
         }
     }
+
+    stage.removeChild(graphic);
+    stage.addChild(graphic);
+
     renderer.render(stage);
 }
 
@@ -86,10 +87,10 @@ function addPoint(data: Data, x: number, y: number) {
     const previousX = data.x[length - 1];
     const previousY = data.y[length - 1];
 
-    if (distance(x, y, previousX, previousY) > LINE_WIDTH) {
-        data.x.push(x);
-        data.y.push(y);
-    }
+    //if (distance(x, y, previousX, previousY) > LINE_WIDTH) {
+    data.x.push(x);
+    data.y.push(y);
+    //}
 }
 
 view.addEventListener("touchstart", e => {
@@ -170,3 +171,5 @@ view.addEventListener("mouseup", e => {
         render();
     }
 }, false);
+
+render();
