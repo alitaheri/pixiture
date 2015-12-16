@@ -9,11 +9,9 @@ var datas = [];
 var touches = [];
 var mouse = {};
 var stage = new PIXI.Container();
-var cache = new PIXI.Container();
-stage.addChild(cache);
 var graphic = new PIXI.Graphics();
 stage.addChild(graphic);
-var LINE_WIDTH = 5;
+var LINE_WIDTH = 2;
 function distance(Ax, Ay, Bx, By) {
     var dx = Ax - Bx;
     var dy = Ay - By;
@@ -25,7 +23,7 @@ function clear() {
     for (var i = 0; i < datas.length; i++) {
         var data = datas[i];
         if (data.frozen && data.gr) {
-            cache.removeChild(data.gr);
+            stage.removeChild(data.gr);
             deleted.push(i);
             datas.splice(i, 1);
             render();
@@ -48,7 +46,7 @@ function render() {
         if (data.frozen) {
             if (!data.gr) {
                 var cahcedGraphics = new PIXI.Graphics();
-                cache.addChild(cahcedGraphics);
+                stage.addChild(cahcedGraphics);
                 renderStroke(cahcedGraphics, data);
                 data.gr = cahcedGraphics;
             }
@@ -57,16 +55,18 @@ function render() {
             renderStroke(graphic, data);
         }
     }
+    stage.removeChild(graphic);
+    stage.addChild(graphic);
     renderer.render(stage);
 }
 function addPoint(data, x, y) {
     var length = data.x.length;
     var previousX = data.x[length - 1];
     var previousY = data.y[length - 1];
-    if (distance(x, y, previousX, previousY) > LINE_WIDTH) {
-        data.x.push(x);
-        data.y.push(y);
-    }
+    //if (distance(x, y, previousX, previousY) > LINE_WIDTH) {
+    data.x.push(x);
+    data.y.push(y);
+    //}
 }
 view.addEventListener("touchstart", function (e) {
     e.preventDefault();
@@ -135,3 +135,4 @@ view.addEventListener("mouseup", function (e) {
         render();
     }
 }, false);
+render();
