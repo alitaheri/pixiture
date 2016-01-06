@@ -1,10 +1,10 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
-		"target": "ES3",
+		"target": "es3",
 		"outDir": "build"
 	},
 	"exclude": [
+    "build",
 		"node_modules"
 	]
 }

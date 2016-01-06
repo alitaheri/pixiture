@@ -1,175 +1,226 @@
-/// <reference path="../typings/pixi.js/pixi.js.d.ts" />
+/// <reference path="pixi.js.d.ts" />
 
-interface Data {
-    gr?: PIXI.Graphics;
-    frozen: boolean;
-    x: number[];
-    y: number[];
-    color: number;
+const DEFAULT_LINE_WIDTH = 2;
+
+let uid = 0;
+
+function getUID(): number {
+  return uid++;
 }
 
-const width = document.body.clientWidth;
-const height = document.body.clientHeight;
-
-const renderer = PIXI.autoDetectRenderer(width, height, { antialias: true, backgroundColor: 0x00000F });
-renderer.autoResize = true;
-const view = renderer.view;
-document.body.appendChild(view);
-const datas: Data[] = [];
-let touches: Data[] = [];
-let mouse: { data?: Data } = {};
-
-const stage = new PIXI.Container();
-
-const graphic = new PIXI.Graphics();
-stage.addChild(graphic);
-
-const LINE_WIDTH = 2;
-
-function distance(Ax: number, Ay: number, Bx: number, By: number) {
-    const dx = Ax - Bx;
-    const dy = Ay - By;
-    return Math.pow(dx * dx + dy * dy, 0.5);
+interface Color {
+  r: number;
+  g: number;
+  b: number;
 }
 
-function clear() {
-    setTimeout(clear, 5000);
-    const deleted = [];
-    for (let i = 0; i < datas.length; i++) {
-        const data = datas[i];
-        if (data.frozen && data.gr) {
-            stage.removeChild(data.gr);
-            deleted.push(i);
-            datas.splice(i, 1);
-            render();
-            return;
-        }
+interface Options {
+  width: number;
+  height: number;
+  transparent?: boolean;
+  backgroundColor?: Color;
+  strokeColor?: Color;
+  strokeWidth?: number;
+}
+
+interface __Data {
+  id: number;
+  gr?: PIXI.Graphics;
+  frozen: boolean;
+  x: number[];
+  y: number[];
+}
+
+interface __Options {
+  width: number;
+  height: number;
+  transparent: boolean;
+  backgroundColor: number;
+  strokeColor: number;
+  strokeWidth: number;
+}
+
+class Pixiture {
+
+  private static _colorToNmuber({r, g, b}: Color) {
+    return r * 256 * 256 + g * 256 + b;
+  }
+
+  private static _distance(Ax: number, Ay: number, Bx: number, By: number) {
+    return Math.sqrt((Ax - Bx) * (Ax - Bx) + (Ay - By) * (Ay - By));
+  }
+
+  private _options: __Options;
+  private _renderer: PIXI.WebGLRenderer | PIXI.CanvasRenderer;
+  private _stage: PIXI.Container;
+  private _graphic: PIXI.Graphics;
+
+  private _data: __Data[];
+  private _touches: __Data[];
+  private _mouse: __Data;
+
+  constructor(options: Options) {
+    const allOptions = {
+      width: options.width,
+      height: options.height,
+      transparent: !!options.transparent,
+      backgroundColor: options.backgroundColor ? Pixiture._colorToNmuber(options.backgroundColor) : 0,
+      strokeColor: options.strokeColor ? Pixiture._colorToNmuber(options.strokeColor) : 0xFFFFFF,
+      strokeWidth: options.strokeWidth || DEFAULT_LINE_WIDTH,
+    };
+
+    this._options = allOptions;
+    this._renderer = PIXI.autoDetectRenderer(allOptions.width, allOptions.height, {
+      antialias: true,
+      backgroundColor: allOptions.backgroundColor,
+      transparent: allOptions.transparent,
+    });
+    this._data = [];
+    this._touches = [];
+
+    this._stage = new PIXI.Container();
+    this._graphic = new PIXI.Graphics();
+    this._stage.addChild(this._graphic);
+
+    this._renderer.view.addEventListener("touchstart", this._handleTouchStart, false);
+    this._renderer.view.addEventListener("touchmove", this._handleTouchMove, false);
+    this._renderer.view.addEventListener("touchend", this._handleTouchEnd, false);
+    this._renderer.view.addEventListener("mousedown", this._handleMouseDown, false);
+    this._renderer.view.addEventListener("mousemove", this._handleMouseMove, false);
+    this._renderer.view.addEventListener("mouseup", this._handleMouseUp, false);
+  }
+
+  public view() {
+    return this._renderer.view;
+  }
+
+  public clearStroke(id: number) {
+    for (let i = 0; i < this._data.length; i++) {
+      const data = this._data[i];
+      if (data.frozen && data.gr && data.id === id) {
+        this._stage.removeChild(data.gr);
+        this._data.splice(i, 1);
+        this._render();
+        return;
+      }
     }
-}
+  }
 
-clear();
+  public clearAll() {
+    for (let i = 0; i < this._data.length; i++) {
+      const data = this._data[i];
+      if (data.frozen && data.gr) {
+        this._stage.removeChild(data.gr);
+        this._data.splice(i, 1);
+      }
+    }
+    this._render();
+  }
 
-function renderStroke(gr: PIXI.Graphics, data: Data) {
-    gr.lineStyle(LINE_WIDTH, data.color);
+  private _renderStroke(gr: PIXI.Graphics, data: __Data) {
+    gr.lineStyle(this._options.strokeWidth, this._options.strokeColor);
     gr.moveTo(data.x[0], data.y[0]);
 
     for (let j = 1; j < data.x.length; j++) {
-        gr.lineTo(data.x[j], data.y[j]);
+      gr.lineTo(data.x[j], data.y[j]);
     }
-}
+  }
 
-function render() {
-    graphic.clear();
+  private _addPoint(data: __Data, pageX: number, pageY: number) {
+    data.x.push(pageX - this._renderer.view.offsetLeft);
+    data.y.push(pageY - this._renderer.view.offsetTop);
+  }
 
-    for (let i = 0; i < datas.length; i++) {
-        const data = datas[i];
-        if (data.frozen) {
-            if (!data.gr) {
-                const cahcedGraphics = new PIXI.Graphics();
-                stage.addChild(cahcedGraphics);
-                renderStroke(cahcedGraphics, data);
-                data.gr = cahcedGraphics;
-            }
-        } else {
-            renderStroke(graphic, data);
-        }
-    }
-
-    stage.removeChild(graphic);
-    stage.addChild(graphic);
-
-    renderer.render(stage);
-}
-
-function addPoint(data: Data, x: number, y: number) {
-    const length = data.x.length;
-
-    const previousX = data.x[length - 1];
-    const previousY = data.y[length - 1];
-
-    //if (distance(x, y, previousX, previousY) > LINE_WIDTH) {
-    data.x.push(x);
-    data.y.push(y);
-    //}
-}
-
-view.addEventListener("touchstart", e => {
-    e.preventDefault();
-
-    for (let i = 0; i < e.targetTouches.length; i++) {
-        const touch = e.targetTouches[i];
-        const data = {
-            x: [touch.pageX],
-            y: [touch.pageY],
-            color: Math.random() * 0xFFFFFF,
-            frozen: false,
-        };
-        touches[touch.identifier] = data;
-        datas.push(data);
-    }
-    render();
-}, false);
-
-view.addEventListener("touchmove", e => {
-    e.preventDefault();
-
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        const data = touches[touch.identifier];
-        if (data) addPoint(data, touch.pageX, touch.pageY);
-    }
-    render();
-}, false);
-
-view.addEventListener("touchend", e => {
-    e.preventDefault();
-
-    for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        const data = touches[touch.identifier];
-        if (data) {
-            addPoint(data, touch.pageX, touch.pageY);
-            data.frozen = true;
-        }
-        touches[touch.identifier] = null;
-    }
-    render();
-}, false);
-
-view.addEventListener("mousedown", e => {
-    e.preventDefault();
-
+  private _addStroke(x: number, y: number): __Data {
     const data = {
-        x: [e.pageX],
-        y: [e.pageY],
-        color: Math.random() * 0xFFFFFF,
-        frozen: false,
+      id: getUID(),
+      x: [x - this._renderer.view.offsetLeft],
+      y: [y - this._renderer.view.offsetTop],
+      frozen: false,
     };
-    mouse.data = data;
-    datas.push(data);
+    this._data.push(data);
+    return data;
+  }
+  private _render = () => {
+    this._graphic.clear();
 
-    render();
-}, false);
-
-view.addEventListener("mousemove", e => {
-    e.preventDefault();
-
-    const data = mouse.data;
-    if (data) {
-        addPoint(data, e.pageX, e.pageY);
-        render();
+    for (let i = 0; i < this._data.length; i++) {
+      const data = this._data[i];
+      if (data.frozen) {
+        if (!data.gr) {
+          const cahcedGraphics = new PIXI.Graphics();
+          this._stage.addChild(cahcedGraphics);
+          this._renderStroke(cahcedGraphics, data);
+          data.gr = cahcedGraphics;
+        }
+      } else {
+        this._renderStroke(this._graphic, data);
+      }
     }
 
-}, false);
+    this._stage.removeChild(this._graphic);
+    this._stage.addChild(this._graphic);
 
-view.addEventListener("mouseup", e => {
-    e.preventDefault();
-    if (mouse.data) {
-        addPoint(mouse.data, e.pageX, e.pageY);
-        mouse.data.frozen = true;
-        mouse.data = undefined;
-        render();
+    this._renderer.render(this._stage);
+  }
+
+  private _handleTouchStart = (event: TouchEvent) => {
+    event.preventDefault();
+
+    for (let i = 0; i < event.targetTouches.length; i++) {
+      const touch = event.targetTouches[i];
+      this._touches[touch.identifier] = this._addStroke(touch.pageX, touch.pageY);
     }
-}, false);
+    this._render();
+  }
 
-render();
+  private _handleTouchMove = (event: TouchEvent) => {
+    event.preventDefault();
+
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      const data = this._touches[touch.identifier];
+      if (data) this._addPoint(data, touch.pageX, touch.pageY);
+    }
+    this._render();
+  }
+
+  private _handleTouchEnd = (event: TouchEvent) => {
+    event.preventDefault();
+
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      const data = this._touches[touch.identifier];
+      if (data) {
+        this._addPoint(data, touch.pageX, touch.pageY);
+        data.frozen = true;
+      }
+      this._touches[touch.identifier] = null;
+    }
+    this._render();
+  }
+
+  private _handleMouseDown = (event: MouseEvent) => {
+    event.preventDefault();
+    this._mouse = this._addStroke(event.pageX, event.pageY);
+    this._render();
+  }
+
+  private _handleMouseMove = (event: MouseEvent) => {
+    event.preventDefault();
+    if (this._mouse) {
+      this._addPoint(this._mouse, event.pageX, event.pageY);
+      this._render();
+    }
+  }
+
+  private _handleMouseUp = (event: MouseEvent) => {
+    event.preventDefault();
+    if (this._mouse) {
+      this._addPoint(this._mouse, event.pageX, event.pageY);
+      this._mouse.frozen = true;
+      this._mouse = null;
+      this._render();
+    }
+  }
+}
