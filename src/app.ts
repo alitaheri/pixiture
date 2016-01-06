@@ -388,7 +388,7 @@ class Pixiture {
   pixi.registerOnEndListener((e, data) => console.log(data.id + ' Ended with:' + JSON.stringify({ x: data.x, y: data.y })));
   const view = pixi.view();
 
-  view.style.margin = '100px';
+  view.style.margin = '10px';
 
   document.body.appendChild(view);
 
