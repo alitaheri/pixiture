@@ -12,7 +12,7 @@ var Pixiture = (function () {
             gr.lineStyle(_this._options.strokeWidth, _this._options.strokeColor);
             if (drawCircleIfPossible && data.x.length === 1) {
                 gr.beginFill(_this._options.strokeColor);
-                gr.drawCircle(data.x[0], data.y[0], _this._options.strokeWidth);
+                gr.drawCircle(data.x[0], data.y[0], _this._options.strokeWidth / 10);
                 gr.endFill();
                 return;
             }
@@ -21,10 +21,16 @@ var Pixiture = (function () {
                 gr.lineTo(data.x[1], data.y[1]);
                 return;
             }
-            var scale = _this._options.strokeWidth / 5;
+            if (_this._options.linear) {
+                for (var i = 1; i < data.x.length; i++) {
+                    gr.lineTo(data.x[i], data.y[i]);
+                }
+                return;
+            }
+            var scale = 0.3;
             var controls = { x: [], y: [] };
             for (var i = 0; i < data.x.length; i++) {
-                if (i == 0) {
+                if (i === 0) {
                     var start = [data.x[i], data.y[i]];
                     var second = [data.x[i + 1], data.y[i + 1]];
                     var tangent = Pixiture._subtract(second, start);
@@ -32,7 +38,7 @@ var Pixiture = (function () {
                     controls.x.push(control[0]);
                     controls.y.push(control[1]);
                 }
-                else if (i == data.x.length - 1) {
+                else if (i === data.x.length - 1) {
                     var oneToLast = [data.x[i - 1], data.y[i - 1]];
                     var last = [data.x[i], data.y[i]];
                     var tangent = Pixiture._subtract(last, oneToLast);
@@ -53,8 +59,31 @@ var Pixiture = (function () {
                     controls.y.push(q1[1]);
                 }
             }
-            for (var i = 0; i < data.x.length - 1; i++) {
-                gr.bezierCurveTo(controls.x[2 * i], controls.y[2 * i], controls.x[2 * i + 1], controls.y[2 * i + 1], data.x[i + 1], data.y[i + 1]);
+            if (_this._options.debug) {
+                for (var i = 0; i < data.x.length - 1; i++) {
+                    gr.moveTo(data.x[i], data.y[i]);
+                    gr.bezierCurveTo(controls.x[2 * i], controls.y[2 * i], controls.x[2 * i + 1], controls.y[2 * i + 1], data.x[i + 1], data.y[i + 1]);
+                    gr.moveTo(data.x[i], data.y[i]);
+                    gr.lineTo(controls.x[2 * i], controls.y[2 * i]);
+                    gr.moveTo(controls.x[2 * i], controls.y[2 * i]);
+                    gr.lineTo(controls.x[2 * i + 1], controls.y[2 * i + 1]);
+                    gr.moveTo(controls.x[2 * i + 1], controls.y[2 * i + 1]);
+                    gr.lineTo(data.x[i + 1], data.y[i + 1]);
+                    gr.beginFill(0xFF0000);
+                    gr.drawCircle(data.x[i + 1], data.y[i + 1], 2);
+                    gr.endFill();
+                    gr.beginFill(0xFF00FF);
+                    gr.drawCircle(controls.x[2 * i], controls.y[2 * i], 2);
+                    gr.endFill();
+                    gr.beginFill(0x00FF00);
+                    gr.drawCircle(controls.x[2 * i + 1], controls.y[2 * i + 1], 2);
+                    gr.endFill();
+                }
+            }
+            else {
+                for (var i = 0; i < data.x.length - 1; i++) {
+                    gr.bezierCurveTo(controls.x[2 * i], controls.y[2 * i], controls.x[2 * i + 1], controls.y[2 * i + 1], data.x[i + 1], data.y[i + 1]);
+                }
             }
         };
         this._onStart = function (event, data) {
@@ -72,10 +101,11 @@ var Pixiture = (function () {
                 _this._onEndListeners[i](event, outputData);
             }
         };
-        this._addPoint = function (data, pageX, pageY) {
+        this._addPoint = function (data, clientX, clientY) {
             var len = data.x.length;
-            var x = pageX - _this._renderer.view.offsetLeft;
-            var y = pageY - _this._renderer.view.offsetTop;
+            var rect = _this._renderer.view.getBoundingClientRect();
+            var x = clientX - rect.left;
+            var y = clientY - rect.top;
             if (len > 0) {
                 var distance = Pixiture._distance(x, y, data.x[len - 1], data.y[len - 1]);
                 if (distance <= _this._options.strokeWidth)
@@ -84,13 +114,15 @@ var Pixiture = (function () {
             data.x.push(x);
             data.y.push(y);
         };
-        this._addStroke = function (x, y) {
+        this._addStroke = function (clientX, clientY) {
+            var rect = _this._renderer.view.getBoundingClientRect();
             var data = {
                 id: getUID(),
-                x: [x - _this._renderer.view.offsetLeft],
-                y: [y - _this._renderer.view.offsetTop],
+                x: [],
+                y: [],
                 frozen: false
             };
+            _this._addPoint(data, clientX, clientY);
             _this._data.push(data);
             return data;
         };
@@ -116,7 +148,7 @@ var Pixiture = (function () {
             event.preventDefault();
             for (var i = 0; i < event.targetTouches.length; i++) {
                 var touch = event.targetTouches[i];
-                var data = _this._addStroke(touch.pageX, touch.pageY);
+                var data = _this._addStroke(touch.clientX, touch.clientY);
                 _this._touches[touch.identifier] = data;
                 _this._onStart(event, data);
             }
@@ -128,7 +160,7 @@ var Pixiture = (function () {
                 var touch = event.changedTouches[i];
                 var data = _this._touches[touch.identifier];
                 if (data)
-                    _this._addPoint(data, touch.pageX, touch.pageY);
+                    _this._addPoint(data, touch.clientX, touch.clientY);
             }
             _this._render();
         };
@@ -138,7 +170,7 @@ var Pixiture = (function () {
                 var touch = event.changedTouches[i];
                 var data = _this._touches[touch.identifier];
                 if (data) {
-                    _this._addPoint(data, touch.pageX, touch.pageY);
+                    _this._addPoint(data, touch.clientX, touch.clientY);
                     data.frozen = true;
                     _this._onEnd(event, data);
                 }
@@ -148,7 +180,7 @@ var Pixiture = (function () {
         };
         this._handleMouseDown = function (event) {
             event.preventDefault();
-            var data = _this._addStroke(event.pageX, event.pageY);
+            var data = _this._addStroke(event.clientX, event.clientY);
             _this._mouse = data;
             _this._onStart(event, data);
             _this._render();
@@ -156,14 +188,24 @@ var Pixiture = (function () {
         this._handleMouseMove = function (event) {
             event.preventDefault();
             if (_this._mouse) {
-                _this._addPoint(_this._mouse, event.pageX, event.pageY);
+                _this._addPoint(_this._mouse, event.clientX, event.clientY);
+                _this._render();
+            }
+        };
+        this._handleMouseLeave = function (event) {
+            event.preventDefault();
+            if (_this._mouse) {
+                _this._addPoint(_this._mouse, event.clientX, event.clientY);
+                _this._mouse.frozen = true;
+                _this._onEnd(event, _this._mouse);
+                _this._mouse = null;
                 _this._render();
             }
         };
         this._handleMouseUp = function (event) {
             event.preventDefault();
             if (_this._mouse) {
-                _this._addPoint(_this._mouse, event.pageX, event.pageY);
+                _this._addPoint(_this._mouse, event.clientX, event.clientY);
                 _this._mouse.frozen = true;
                 _this._onEnd(event, _this._mouse);
                 _this._mouse = null;
@@ -173,6 +215,8 @@ var Pixiture = (function () {
         var allOptions = {
             width: options.width,
             height: options.height,
+            linear: options.linear,
+            debug: options.debug,
             transparent: !!options.transparent,
             backgroundColor: options.backgroundColor ? Pixiture._colorToNmuber(options.backgroundColor) : 0,
             strokeColor: options.strokeColor ? Pixiture._colorToNmuber(options.strokeColor) : 0xFFFFFF,
@@ -196,6 +240,7 @@ var Pixiture = (function () {
         this._renderer.view.addEventListener("touchend", this._handleTouchEnd, false);
         this._renderer.view.addEventListener("mousedown", this._handleMouseDown, false);
         this._renderer.view.addEventListener("mousemove", this._handleMouseMove, false);
+        this._renderer.view.addEventListener("mouseleave", this._handleMouseLeave, false);
         this._renderer.view.addEventListener("mouseup", this._handleMouseUp, false);
     }
     Pixiture._colorToNmuber = function (_a) {
@@ -273,7 +318,17 @@ var Pixiture = (function () {
 [0, 0, 0, 0, 0].map(function () {
     var pixi = new Pixiture({
         height: 500,
-        width: 500
+        width: 500,
+        backgroundColor: {
+            r: 0,
+            g: 0,
+            b: 0
+        },
+        strokeColor: {
+            r: 255,
+            g: 255,
+            b: 255
+        }
     });
     pixi.registerOnStartListener(function (e, id) { return console.log(id + ' Started'); });
     pixi.registerOnEndListener(function (e, data) { return console.log(data.id + ' Ended with:' + JSON.stringify({ x: data.x, y: data.y })); });
