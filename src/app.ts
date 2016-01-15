@@ -17,6 +17,8 @@ interface Color {
 interface Options {
   width: number;
   height: number;
+  debug?: boolean;
+  linear?: boolean;
   transparent?: boolean;
   backgroundColor?: Color;
   strokeColor?: Color;
@@ -34,6 +36,8 @@ interface __Data {
 interface __Options {
   width: number;
   height: number;
+  linear: boolean;
+  debug: boolean;
   transparent: boolean;
   backgroundColor: number;
   strokeColor: number;
@@ -104,6 +108,8 @@ class Pixiture {
     const allOptions = {
       width: options.width,
       height: options.height,
+      linear: options.linear,
+      debug: options.debug,
       transparent: !!options.transparent,
       backgroundColor: options.backgroundColor ? Pixiture._colorToNmuber(options.backgroundColor) : 0,
       strokeColor: options.strokeColor ? Pixiture._colorToNmuber(options.strokeColor) : 0xFFFFFF,
@@ -131,6 +137,7 @@ class Pixiture {
     this._renderer.view.addEventListener("touchend", this._handleTouchEnd, false);
     this._renderer.view.addEventListener("mousedown", this._handleMouseDown, false);
     this._renderer.view.addEventListener("mousemove", this._handleMouseMove, false);
+    this._renderer.view.addEventListener("mouseleave", this._handleMouseLeave, false);
     this._renderer.view.addEventListener("mouseup", this._handleMouseUp, false);
   }
 
@@ -181,7 +188,7 @@ class Pixiture {
 
     if (drawCircleIfPossible && data.x.length === 1) {
       gr.beginFill(this._options.strokeColor);
-      gr.drawCircle(data.x[0], data.y[0], this._options.strokeWidth);
+      gr.drawCircle(data.x[0], data.y[0], this._options.strokeWidth / 10);
       gr.endFill();
       return;
     }
@@ -193,12 +200,19 @@ class Pixiture {
       return;
     }
 
-    const scale = this._options.strokeWidth / 5;
+    if (this._options.linear) {
+      for (let i = 1; i < data.x.length; i++) {
+        gr.lineTo(data.x[i], data.y[i]);
+      }
+      return;
+    }
+
+    const scale = 0.3;
 
     const controls = { x: [], y: [] };
 
     for (let i = 0; i < data.x.length; i++) {
-      if (i == 0) {
+      if (i === 0) {
         const start: Point = [data.x[i], data.y[i]];
         const second: Point = [data.x[i + 1], data.y[i + 1]];
         const tangent = Pixiture._subtract(second, start);
@@ -208,7 +222,7 @@ class Pixiture {
         controls.x.push(control[0]);
         controls.y.push(control[1]);
       }
-      else if (i == data.x.length - 1) {
+      else if (i === data.x.length - 1) {
         const oneToLast: Point = [data.x[i - 1], data.y[i - 1]];
         const last: Point = [data.x[i], data.y[i]];
         const tangent = Pixiture._subtract(last, oneToLast);
@@ -233,15 +247,49 @@ class Pixiture {
       }
     }
 
-    for (let i = 0; i < data.x.length - 1; i++) {
-      gr.bezierCurveTo(
-        controls.x[2 * i],
-        controls.y[2 * i],
-        controls.x[2 * i + 1],
-        controls.y[2 * i + 1],
-        data.x[i + 1],
-        data.y[i + 1]
-      );
+    if (this._options.debug) {
+      for (let i = 0; i < data.x.length - 1; i++) {
+        gr.moveTo(data.x[i], data.y[i]);
+        gr.bezierCurveTo(
+          controls.x[2 * i],
+          controls.y[2 * i],
+          controls.x[2 * i + 1],
+          controls.y[2 * i + 1],
+          data.x[i + 1],
+          data.y[i + 1]
+        );
+        gr.moveTo(data.x[i], data.y[i]);
+        gr.lineTo(controls.x[2 * i], controls.y[2 * i]);
+
+        gr.moveTo(controls.x[2 * i], controls.y[2 * i]);
+        gr.lineTo(controls.x[2 * i + 1], controls.y[2 * i + 1]);
+
+        gr.moveTo(controls.x[2 * i + 1], controls.y[2 * i + 1]);
+        gr.lineTo(data.x[i + 1], data.y[i + 1]);
+
+        gr.beginFill(0xFF0000);
+        gr.drawCircle(data.x[i + 1], data.y[i + 1], 2);
+        gr.endFill();
+
+        gr.beginFill(0xFF00FF);
+        gr.drawCircle(controls.x[2 * i], controls.y[2 * i], 2);
+        gr.endFill();
+
+        gr.beginFill(0x00FF00);
+        gr.drawCircle(controls.x[2 * i + 1], controls.y[2 * i + 1], 2);
+        gr.endFill();
+      }
+    } else {
+      for (let i = 0; i < data.x.length - 1; i++) {
+        gr.bezierCurveTo(
+          controls.x[2 * i],
+          controls.y[2 * i],
+          controls.x[2 * i + 1],
+          controls.y[2 * i + 1],
+          data.x[i + 1],
+          data.y[i + 1]
+        );
+      }
     }
 
   }
@@ -264,10 +312,11 @@ class Pixiture {
     }
   }
 
-  private _addPoint = (data: __Data, pageX: number, pageY: number) => {
+  private _addPoint = (data: __Data, clientX: number, clientY: number) => {
     const len = data.x.length;
-    const x = pageX - this._renderer.view.offsetLeft;
-    const y = pageY - this._renderer.view.offsetTop;
+    const rect = this._renderer.view.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
 
     if (len > 0) {
       const distance = Pixiture._distance(x, y, data.x[len - 1], data.y[len - 1]);
@@ -279,13 +328,15 @@ class Pixiture {
     data.y.push(y);
   }
 
-  private _addStroke = (x: number, y: number): __Data => {
+  private _addStroke = (clientX: number, clientY: number): __Data => {
+    const rect = this._renderer.view.getBoundingClientRect();
     const data = {
       id: getUID(),
-      x: [x - this._renderer.view.offsetLeft],
-      y: [y - this._renderer.view.offsetTop],
+      x: [],
+      y: [],
       frozen: false,
     };
+    this._addPoint(data, clientX, clientY);
     this._data.push(data);
     return data;
   }
@@ -315,7 +366,7 @@ class Pixiture {
 
     for (let i = 0; i < event.targetTouches.length; i++) {
       const touch = event.targetTouches[i];
-      const data = this._addStroke(touch.pageX, touch.pageY)
+      const data = this._addStroke(touch.clientX, touch.clientY)
       this._touches[touch.identifier] = data;
       this._onStart(event, data);
     }
@@ -328,7 +379,7 @@ class Pixiture {
     for (let i = 0; i < event.changedTouches.length; i++) {
       const touch = event.changedTouches[i];
       const data = this._touches[touch.identifier];
-      if (data) this._addPoint(data, touch.pageX, touch.pageY);
+      if (data) this._addPoint(data, touch.clientX, touch.clientY);
     }
     this._render();
   }
@@ -340,7 +391,7 @@ class Pixiture {
       const touch = event.changedTouches[i];
       const data = this._touches[touch.identifier];
       if (data) {
-        this._addPoint(data, touch.pageX, touch.pageY);
+        this._addPoint(data, touch.clientX, touch.clientY);
         data.frozen = true;
         this._onEnd(event, data);
       }
@@ -351,7 +402,7 @@ class Pixiture {
 
   private _handleMouseDown = (event: MouseEvent) => {
     event.preventDefault();
-    const data = this._addStroke(event.pageX, event.pageY);
+    const data = this._addStroke(event.clientX, event.clientY);
     this._mouse = data;
     this._onStart(event, data);
     this._render();
@@ -360,7 +411,18 @@ class Pixiture {
   private _handleMouseMove = (event: MouseEvent) => {
     event.preventDefault();
     if (this._mouse) {
-      this._addPoint(this._mouse, event.pageX, event.pageY);
+      this._addPoint(this._mouse, event.clientX, event.clientY);
+      this._render();
+    }
+  }
+
+  private _handleMouseLeave = (event: MouseEvent) => {
+    event.preventDefault();
+    if (this._mouse) {
+      this._addPoint(this._mouse, event.clientX, event.clientY);
+      this._mouse.frozen = true;
+      this._onEnd(event, this._mouse);
+      this._mouse = null;
       this._render();
     }
   }
@@ -368,7 +430,7 @@ class Pixiture {
   private _handleMouseUp = (event: MouseEvent) => {
     event.preventDefault();
     if (this._mouse) {
-      this._addPoint(this._mouse, event.pageX, event.pageY);
+      this._addPoint(this._mouse, event.clientX, event.clientY);
       this._mouse.frozen = true;
       this._onEnd(event, this._mouse);
       this._mouse = null;
