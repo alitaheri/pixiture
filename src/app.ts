@@ -145,6 +145,11 @@ class Pixiture {
     return this._renderer.view;
   }
 
+  public asPng(dataUrl = true) {
+    const data = this._renderer.view.toDataURL('image/png');
+    return dataUrl ? data : data.replace('data:image/png;base64,', '');
+  }
+
   public registerOnStartListener(listener: OnStartListener) {
     if (typeof listener === 'function') {
       this._onStartListeners.push(listener);
