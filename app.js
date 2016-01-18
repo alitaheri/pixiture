@@ -278,6 +278,11 @@ var Pixiture = (function () {
     Pixiture.prototype.view = function () {
         return this._renderer.view;
     };
+    Pixiture.prototype.asPng = function (dataUrl) {
+        if (dataUrl === void 0) { dataUrl = true; }
+        var data = this._renderer.view.toDataURL('image/png');
+        return dataUrl ? data : data.replace('data:image/png;base64,', '');
+    };
     Pixiture.prototype.registerOnStartListener = function (listener) {
         if (typeof listener === 'function') {
             this._onStartListeners.push(listener);
@@ -315,24 +320,4 @@ var Pixiture = (function () {
     };
     return Pixiture;
 })();
-[0, 0, 0, 0, 0].map(function () {
-    var pixi = new Pixiture({
-        height: 500,
-        width: 500,
-        backgroundColor: {
-            r: 0,
-            g: 0,
-            b: 0
-        },
-        strokeColor: {
-            r: 255,
-            g: 255,
-            b: 255
-        }
-    });
-    pixi.registerOnStartListener(function (e, id) { return console.log(id + ' Started'); });
-    pixi.registerOnEndListener(function (e, data) { return console.log(data.id + ' Ended with:' + JSON.stringify({ x: data.x, y: data.y })); });
-    var view = pixi.view();
-    view.style.margin = '10px';
-    document.body.appendChild(view);
-});
+//# sourceMappingURL=app.js.map
