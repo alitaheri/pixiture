@@ -183,6 +183,21 @@ class Pixiture {
     this._render();
   }
 
+  public isEmpty(countActive = false) {
+
+    if (countActive) {
+      return this._data.length === 0;
+    }
+
+    for (let i = 0; i < this._data.length; i++) {
+      const data = this._data[i];
+      if (data.frozen && data.gr) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private _renderStroke = (gr: PIXI.Graphics, data: __Data, drawCircleIfPossible = false) => {
     gr.lineStyle(this._options.strokeWidth, this._options.strokeColor);
 
