@@ -2,12 +2,6 @@
 
 const DEFAULT_LINE_WIDTH = 2;
 
-let uid = 0;
-
-function getUID(): number {
-  return uid++;
-}
-
 interface Color {
   r: number;
   g: number;
@@ -92,6 +86,7 @@ class Pixiture {
     return [Ax / length, Ay / length];
   }
 
+  private _currentUid = 0;
   private _options: __Options;
   private _renderer: PIXI.WebGLRenderer | PIXI.CanvasRenderer;
   private _stage: PIXI.Container;
@@ -333,10 +328,14 @@ class Pixiture {
     data.y.push(y);
   }
 
+  private getUID = () => {
+    return this._currentUid++;
+  };
+
   private _addStroke = (clientX: number, clientY: number): __Data => {
     const rect = this._renderer.view.getBoundingClientRect();
     const data = {
-      id: getUID(),
+      id: this.getUID(),
       x: [],
       y: [],
       frozen: false,
