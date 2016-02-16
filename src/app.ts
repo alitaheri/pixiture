@@ -52,6 +52,10 @@ interface OnEndListener {
   (event: Event, data: Data): void;
 }
 
+interface OnRenderListener {
+  (stage: PIXI.Container): void;
+}
+
 type Point = [number, number];
 
 class Pixiture {
@@ -98,6 +102,8 @@ class Pixiture {
 
   private _onStartListeners: OnStartListener[];
   private _onEndListeners: OnEndListener[];
+  private _onPreRenderListeners: OnRenderListener[];
+  private _onPostRenderListeners: OnRenderListener[];
 
   constructor(options: Options) {
     const allOptions = {
@@ -126,6 +132,8 @@ class Pixiture {
 
     this._onStartListeners = [];
     this._onEndListeners = [];
+    this._onPreRenderListeners = [];
+    this._onPostRenderListeners = [];
 
     this._renderer.view.addEventListener("touchstart", this._handleTouchStart, false);
     this._renderer.view.addEventListener("touchmove", this._handleTouchMove, false);
@@ -134,6 +142,10 @@ class Pixiture {
     this._renderer.view.addEventListener("mousemove", this._handleMouseMove, false);
     this._renderer.view.addEventListener("mouseleave", this._handleMouseLeave, false);
     this._renderer.view.addEventListener("mouseup", this._handleMouseUp, false);
+  }
+
+  public stage() {
+    return this._stage;
   }
 
   public view() {
@@ -155,6 +167,22 @@ class Pixiture {
     if (typeof listener === 'function') {
       this._onEndListeners.push(listener);
     }
+  }
+
+  public registerOnPreRenderListeners(listener: OnRenderListener) {
+    if (typeof listener === 'function') {
+      this._onPreRenderListeners.push(listener);
+    }
+  }
+
+  public registerOnPostRenderListeners(listener: OnRenderListener) {
+    if (typeof listener === 'function') {
+      this._onPostRenderListeners.push(listener);
+    }
+  }
+
+  public triggerRender() {
+    this._render();
   }
 
   public clearStroke(id: number) {
@@ -363,6 +391,10 @@ class Pixiture {
   private _render = () => {
     this._graphic.clear();
 
+    for (let i = 0; i < this._onPreRenderListeners.length; i++) {
+      this._onPreRenderListeners[i](this._stage);
+    }
+
     for (let i = 0; i < this._data.length; i++) {
       const data = this._data[i];
       if (data.frozen) {
@@ -375,6 +407,13 @@ class Pixiture {
       } else {
         this._renderStroke(this._graphic, data);
       }
+    }
+
+    this._stage.removeChild(this._graphic);
+    this._stage.addChild(this._graphic);
+
+    for (let i = 0; i < this._onPostRenderListeners.length; i++) {
+      this._onPostRenderListeners[i](this._stage);
     }
 
     this._renderer.render(this._stage);
